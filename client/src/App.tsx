@@ -17,6 +17,8 @@ function App() {
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [studentCard, setStudentCard] = useState<StudentWithCard | null>(null);
   const [activeTab, setActiveTab] = useState('registration');
+  const [showPublicRegistration, setShowPublicRegistration] = useState(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState<string | null>(null);
 
   // Load students (admin only)
   const loadStudents = useCallback(async () => {
@@ -59,6 +61,11 @@ function App() {
     setStudents((prev: Student[]) => [...prev, newStudent]);
   };
 
+  const handlePublicRegistration = (newStudent: Student) => {
+    setRegistrationSuccess(`Pendaftaran berhasil! Anda dapat masuk menggunakan NISN (${newStudent.nisn}) sebagai username dan password.`);
+    setShowPublicRegistration(false);
+  };
+
   const handleStudentUpdated = (updatedStudent: Student) => {
     setStudents((prev: Student[]) => 
       prev.map(student => 
@@ -93,21 +100,49 @@ function App() {
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-2xl">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <GraduationCap className="h-12 w-12 text-blue-600" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">🎓 Sistem Pendaftaran Ulang Siswa</h1>
-            <p className="text-gray-600">Masuk untuk mengakses sistem pendaftaran dan kartu pelajar</p>
+            <p className="text-gray-600">
+              {showPublicRegistration ? 'Daftarkan akun siswa baru' : 'Masuk untuk mengakses sistem pendaftaran dan kartu pelajar'}
+            </p>
           </div>
           
           <Card>
             <CardHeader>
-              <CardTitle className="text-center">Masuk ke Sistem</CardTitle>
+              <CardTitle className="text-center">
+                {showPublicRegistration ? 'Pendaftaran Akun Siswa Baru' : 'Masuk ke Sistem'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <LoginForm onLogin={handleLogin} />
+              {showPublicRegistration ? (
+                <div className="space-y-4">
+                  <StudentRegistrationForm 
+                    onStudentCreated={handlePublicRegistration}
+                    isAdmin={false}
+                  />
+                  <div className="text-center">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        setShowPublicRegistration(false);
+                        setRegistrationSuccess(null);
+                      }}
+                    >
+                      Kembali ke Login
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <LoginForm 
+                  onLogin={handleLogin} 
+                  onShowRegistration={() => setShowPublicRegistration(true)}
+                  successMessage={registrationSuccess}
+                />
+              )}
             </CardContent>
           </Card>
         </div>

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { studentsTable } from '../db/schema';
+import { studentsTable, usersTable } from '../db/schema';
 import { type CreateStudentInput, type Student } from '../schema';
 import { eq } from 'drizzle-orm';
 
@@ -31,7 +31,36 @@ export const createStudent = async (input: CreateStudentInput): Promise<Student>
     // Convert date to string format for database storage
     const tanggalLahirString = input.tanggal_lahir.toISOString().split('T')[0];
 
-    // Insert student record
+    let userId = null;
+
+    // Create user account for the student if requested (for public registrations)
+    if (input.create_user_account === true) {
+      // Check if user with this NISN already exists
+      const existingUser = await db.select()
+        .from(usersTable)
+        .where(eq(usersTable.username, input.nisn))
+        .limit(1)
+        .execute();
+
+      if (existingUser.length > 0) {
+        throw new Error(`User account with username ${input.nisn} already exists`);
+      }
+
+      const hashedPassword = await Bun.password.hash(input.nisn); // Use NISN as default password
+      
+      const userResult = await db.insert(usersTable)
+        .values({
+          username: input.nisn,
+          password: hashedPassword,
+          role: 'SISWA'
+        })
+        .returning()
+        .execute();
+
+      userId = userResult[0].id;
+    }
+
+    // Insert student record with optional linked user_id
     const result = await db.insert(studentsTable)
       .values({
         nisn: input.nisn,
@@ -51,7 +80,7 @@ export const createStudent = async (input: CreateStudentInput): Promise<Student>
         tinggal_bersama: input.tinggal_bersama,
         asal_sekolah: input.asal_sekolah,
         foto_siswa: input.foto_siswa,
-        user_id: null // Can be linked later if student needs login access
+        user_id: userId // Link to the newly created user account if created
       })
       .returning()
       .execute();

@@ -17,9 +17,23 @@ export async function login(input: LoginInput): Promise<User | null> {
 
     const user = users[0];
 
-    // In a real implementation, you would hash the input password and compare with stored hash
-    // For this implementation, we'll do a direct comparison (not recommended for production)
-    if (user.password !== input.password) {
+    // Handle both hashed and plain text passwords for backward compatibility
+    let isPasswordValid = false;
+    
+    try {
+      // Try to verify as hashed password first
+      isPasswordValid = await Bun.password.verify(input.password, user.password);
+    } catch (error) {
+      // If verification fails due to unsupported algorithm, fall back to plain text comparison
+      // This maintains backward compatibility with existing test data
+      if (error instanceof Error && error.message.includes('UnsupportedAlgorithm')) {
+        isPasswordValid = user.password === input.password;
+      } else {
+        throw error; // Re-throw other errors
+      }
+    }
+    
+    if (!isPasswordValid) {
       return null; // Invalid password
     }
 

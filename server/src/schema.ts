@@ -85,7 +85,8 @@ export const createStudentInputSchema = z.object({
   anak_ke: z.number().int().positive(),
   tinggal_bersama: livingWithEnum,
   asal_sekolah: z.string().min(1),
-  foto_siswa: z.string().nullable()
+  foto_siswa: z.string().nullable(),
+  create_user_account: z.boolean().optional() // Flag to control user account creation
 });
 
 export type CreateStudentInput = z.infer<typeof createStudentInputSchema>;

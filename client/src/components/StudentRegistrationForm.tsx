@@ -45,9 +45,13 @@ export function StudentRegistrationForm({ onStudentCreated, isAdmin }: StudentRe
     setSuccess(null);
 
     try {
-      const newStudent = await trpc.createStudent.mutate(formData);
+      const newStudent = isAdmin 
+        ? await trpc.createStudent.mutate(formData)
+        : await trpc.registerStudent.mutate(formData);
       onStudentCreated(newStudent);
-      setSuccess('✅ Data siswa berhasil didaftarkan! Silakan lanjut ke pembuatan kartu pelajar.');
+      setSuccess(isAdmin 
+        ? '✅ Data siswa berhasil didaftarkan! Silakan lanjut ke pembuatan kartu pelajar.'
+        : '✅ Pendaftaran berhasil! Akun login telah dibuat dengan NISN sebagai username dan password.');
       
       // Reset form
       setFormData({

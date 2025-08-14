@@ -58,6 +58,11 @@ const appRouter = router({
     .input(createStudentInputSchema)
     .mutation(({ input }) => createStudent(input)),
 
+  // Public registration endpoint that automatically creates user account
+  registerStudent: publicProcedure
+    .input(createStudentInputSchema.omit({ create_user_account: true }))
+    .mutation(({ input }) => createStudent({ ...input, create_user_account: true })),
+
   getStudentById: publicProcedure
     .input(getStudentByIdSchema)
     .query(({ input }) => getStudentById(input)),
