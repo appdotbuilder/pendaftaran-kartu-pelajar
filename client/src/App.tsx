@@ -1,13 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { trpc } from '@/utils/trpc';
 import { LoginForm } from '@/components/LoginForm';
 import { StudentRegistrationForm } from '@/components/StudentRegistrationForm';
 import { StudentList } from '@/components/StudentList';
 import { StudentCard } from '@/components/StudentCard';
-import { GraduationCap, Users, IdCard, LogOut, UserCheck } from 'lucide-react';
+import { ApplicationProfile } from '@/components/ApplicationProfile';
+import { 
+  GraduationCap, 
+  Users, 
+  IdCard, 
+  LogOut, 
+  UserCheck, 
+  Info 
+} from 'lucide-react';
 import type { User, Student, StudentWithCard } from '../../server/src/schema';
 
 function App() {
@@ -96,6 +104,147 @@ function App() {
     }
   };
 
+  // Menu items for the sidebar
+  const menuItems = [
+    {
+      id: 'registration',
+      label: '📝 Pendaftaran',
+      icon: UserCheck,
+      component: (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <UserCheck className="h-5 w-5" />
+              <span>📝 Formulir Pendaftaran Ulang Siswa</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StudentRegistrationForm 
+              onStudentCreated={handleStudentCreated}
+              isAdmin={currentUser?.role === 'ADMIN'}
+            />
+          </CardContent>
+        </Card>
+      )
+    },
+    ...(currentUser?.role === 'ADMIN' ? [{
+      id: 'students',
+      label: '👥 Data Siswa',
+      icon: Users,
+      component: (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Users className="h-5 w-5" />
+              <span>👥 Data Siswa Terdaftar</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <StudentList
+              students={students}
+              onStudentUpdated={handleStudentUpdated}
+              onStudentDeleted={handleStudentDeleted}
+              onViewCard={handleViewCard}
+              isLoading={isLoading}
+            />
+          </CardContent>
+        </Card>
+      )
+    }] : []),
+    {
+      id: 'profile',
+      label: '👤 Profil',
+      icon: UserCheck,
+      component: (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <UserCheck className="h-5 w-5" />
+              <span>👤 Profil Pengguna</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Username</label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {currentUser?.username}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Role</label>
+                  <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                    {currentUser?.role === 'ADMIN' ? '👨‍💼 Administrator' : '👨‍🎓 Siswa'}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Terdaftar Sejak</label>
+                <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
+                  {currentUser?.created_at.toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )
+    },
+    {
+      id: 'card',
+      label: '🎫 Kartu Pelajar',
+      icon: IdCard,
+      component: (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <IdCard className="h-5 w-5" />
+              <span>🎫 Kartu Pelajar</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {selectedStudent && studentCard ? (
+              <StudentCard 
+                studentData={studentCard} 
+                onCreateCard={(studentId) => {
+                  console.log('Creating card for student:', studentId);
+                  // Refresh card data after creation
+                  handleViewCard(selectedStudent);
+                }}
+              />
+            ) : (
+              <div className="text-center py-12">
+                <IdCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-4">
+                  Pilih siswa dari daftar untuk melihat atau membuat kartu pelajar
+                </p>
+                {currentUser?.role === 'ADMIN' && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setActiveTab('students')}
+                  >
+                    👥 Lihat Daftar Siswa
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )
+    },
+    {
+      id: 'app-profile',
+      label: 'ℹ️ Profil Aplikasi',
+      icon: Info,
+      component: <ApplicationProfile />
+    }
+  ];
+
   // Login screen for unauthenticated users
   if (!currentUser) {
     return (
@@ -150,187 +299,104 @@ function App() {
     );
   }
 
+  // Get the active menu item
+  const activeMenuItem = menuItems.find(item => item.id === activeTab);
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  🎓 Sistem Pendaftaran Ulang Siswa
-                </h1>
-                <p className="text-sm text-gray-500">
-                  {currentUser.role === 'ADMIN' ? '👨‍💼 Admin Panel' : '👨‍🎓 Portal Siswa'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <UserCheck className="h-4 w-4" />
-                <span>{currentUser.username}</span>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Keluar
-              </Button>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Fixed Left Sidebar */}
+      <div className="w-64 bg-white shadow-lg border-r flex flex-col">
+        {/* Sidebar Header */}
+        <div className="p-6 border-b">
+          <div className="flex items-center space-x-3">
+            <GraduationCap className="h-8 w-8 text-blue-600" />
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                🎓 Sistem Siswa
+              </h1>
+              <p className="text-xs text-gray-500">
+                {currentUser.role === 'ADMIN' ? '👨‍💼 Admin Panel' : '👨‍🎓 Portal Siswa'}
+              </p>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="registration" className="flex items-center space-x-2">
-              <UserCheck className="h-4 w-4" />
-              <span>📝 Pendaftaran</span>
-            </TabsTrigger>
-            
-            {currentUser.role === 'ADMIN' && (
-              <TabsTrigger value="students" className="flex items-center space-x-2">
-                <Users className="h-4 w-4" />
-                <span>👥 Data Siswa</span>
-              </TabsTrigger>
-            )}
-            
-            <TabsTrigger value="profile" className="flex items-center space-x-2">
-              <UserCheck className="h-4 w-4" />
-              <span>👤 Profil</span>
-            </TabsTrigger>
-            
-            <TabsTrigger value="card" className="flex items-center space-x-2">
-              <IdCard className="h-4 w-4" />
-              <span>🎫 Kartu Pelajar</span>
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Student Registration Tab */}
-          <TabsContent value="registration">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <UserCheck className="h-5 w-5" />
-                  <span>📝 Formulir Pendaftaran Ulang Siswa</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <StudentRegistrationForm 
-                  onStudentCreated={handleStudentCreated}
-                  isAdmin={currentUser.role === 'ADMIN'}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Students List Tab (Admin only) */}
-          {currentUser.role === 'ADMIN' && (
-            <TabsContent value="students">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <Users className="h-5 w-5" />
-                    <span>👥 Data Siswa Terdaftar</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StudentList
-                    students={students}
-                    onStudentUpdated={handleStudentUpdated}
-                    onStudentDeleted={handleStudentDeleted}
-                    onViewCard={handleViewCard}
-                    isLoading={isLoading}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-
-          {/* Profile Tab */}
-          <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <UserCheck className="h-5 w-5" />
-                  <span>👤 Profil Pengguna</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Username</label>
-                      <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                        {currentUser.username}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Role</label>
-                      <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                        {currentUser.role === 'ADMIN' ? '👨‍💼 Administrator' : '👨‍🎓 Siswa'}
-                      </p>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Terdaftar Sejak</label>
-                    <p className="text-sm text-gray-900 bg-gray-50 p-2 rounded">
-                      {currentUser.created_at.toLocaleDateString('id-ID', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Student Card Tab */}
-          <TabsContent value="card">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <IdCard className="h-5 w-5" />
-                  <span>🎫 Kartu Pelajar</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {selectedStudent && studentCard ? (
-                  <StudentCard 
-                    studentData={studentCard} 
-                    onCreateCard={(studentId) => {
-                      console.log('Creating card for student:', studentId);
-                      // Refresh card data after creation
-                      handleViewCard(selectedStudent);
-                    }}
-                  />
-                ) : (
-                  <div className="text-center py-12">
-                    <IdCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <p className="text-gray-500 mb-4">
-                      Pilih siswa dari daftar untuk melihat atau membuat kartu pelajar
-                    </p>
-                    {currentUser.role === 'ADMIN' && (
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setActiveTab('students')}
-                      >
-                        👥 Lihat Daftar Siswa
-                      </Button>
+        {/* Sidebar Navigation */}
+        <nav className="flex-1 py-4">
+          <ul className="space-y-1 px-3">
+            {menuItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => setActiveTab(item.id)}
+                    className={cn(
+                      "w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors",
+                      activeTab === item.id
+                        ? "bg-blue-50 text-blue-700 border-r-2 border-blue-600"
+                        : "text-gray-700 hover:bg-gray-50"
                     )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </main>
+                  >
+                    <IconComponent className="h-4 w-4" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t">
+          <div className="flex items-center space-x-3 mb-3">
+            <UserCheck className="h-5 w-5 text-gray-400" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {currentUser.username}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {currentUser.role === 'ADMIN' ? 'Administrator' : 'Siswa'}
+              </p>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleLogout}
+            className="w-full"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Keluar
+          </Button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Main Header */}
+        <header className="bg-white shadow-sm border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold text-gray-900">
+                {activeMenuItem?.label || 'Dashboard'}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Sistem Pendaftaran Ulang Siswa dan Pembuatan Kartu Pelajar
+              </p>
+            </div>
+          </div>
+        </header>
+
+        {/* Main Content */}
+        <main className="flex-1 p-6">
+          {activeMenuItem?.component || (
+            <div className="text-center py-12">
+              <GraduationCap className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Pilih menu dari sidebar untuk memulai</p>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
