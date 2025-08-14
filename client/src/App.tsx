@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/utils/trpc';
 import { LoginForm } from '@/components/LoginForm';
+import { AdminLoginForm } from '@/components/AdminLoginForm';
 import { StudentRegistrationForm } from '@/components/StudentRegistrationForm';
 import { StudentList } from '@/components/StudentList';
 import { StudentCard } from '@/components/StudentCard';
@@ -14,7 +16,8 @@ import {
   IdCard, 
   LogOut, 
   UserCheck, 
-  Info 
+  Info,
+  AlertCircle 
 } from 'lucide-react';
 import type { User, Student, StudentWithCard } from '../../server/src/schema';
 
@@ -26,6 +29,7 @@ function App() {
   const [studentCard, setStudentCard] = useState<StudentWithCard | null>(null);
   const [activeTab, setActiveTab] = useState('registration');
   const [showPublicRegistration, setShowPublicRegistration] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [registrationSuccess, setRegistrationSuccess] = useState<string | null>(null);
 
   // Load students (admin only)
@@ -72,6 +76,7 @@ function App() {
   const handlePublicRegistration = (newStudent: Student) => {
     setRegistrationSuccess(`Pendaftaran berhasil! Anda dapat masuk menggunakan NISN (${newStudent.nisn}) sebagai username dan password.`);
     setShowPublicRegistration(false);
+    setShowAdminLogin(false);
   };
 
   const handleStudentUpdated = (updatedStudent: Student) => {
@@ -256,19 +261,21 @@ function App() {
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">🎓 Sistem Pendaftaran Ulang Siswa</h1>
             <p className="text-gray-600">
-              {showPublicRegistration ? 'Daftarkan akun siswa baru' : 'Masuk untuk mengakses sistem pendaftaran dan kartu pelajar'}
+              {showPublicRegistration 
+                ? 'Daftarkan akun siswa baru' 
+                : showAdminLogin 
+                ? 'Login sebagai administrator' 
+                : 'Pilih jenis akses untuk melanjutkan'}
             </p>
           </div>
           
           <Card>
-            <CardHeader>
-              <CardTitle className="text-center">
-                {showPublicRegistration ? 'Pendaftaran Akun Siswa Baru' : 'Masuk ke Sistem'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               {showPublicRegistration ? (
                 <div className="space-y-4">
+                  <div className="text-center mb-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">📝 Pendaftaran Akun Siswa Baru</h2>
+                  </div>
                   <StudentRegistrationForm 
                     onStudentCreated={handlePublicRegistration}
                     isAdmin={false}
@@ -281,16 +288,85 @@ function App() {
                         setRegistrationSuccess(null);
                       }}
                     >
-                      Kembali ke Login
+                      Kembali ke Menu Utama
                     </Button>
                   </div>
                 </div>
-              ) : (
-                <LoginForm 
-                  onLogin={handleLogin} 
-                  onShowRegistration={() => setShowPublicRegistration(true)}
-                  successMessage={registrationSuccess}
+              ) : showAdminLogin ? (
+                <AdminLoginForm 
+                  onLogin={handleLogin}
+                  onBack={() => {
+                    setShowAdminLogin(false);
+                    setRegistrationSuccess(null);
+                  }}
                 />
+              ) : (
+                <div className="space-y-6">
+                  {/* Main Entry Points */}
+                  <div className="text-center">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-6">Pilih Jenis Akses</h2>
+                  </div>
+
+                  {registrationSuccess && (
+                    <Alert className="border-green-200 bg-green-50 text-green-800">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{registrationSuccess}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="grid gap-4">
+                    {/* Admin Login Button */}
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow border-2 border-blue-200 bg-blue-50">
+                      <CardContent className="pt-6">
+                        <Button 
+                          onClick={() => setShowAdminLogin(true)}
+                          className="w-full h-auto p-4 bg-blue-600 hover:bg-blue-700"
+                          size="lg"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="text-2xl">👨‍💼</div>
+                            <div className="text-left">
+                              <div className="font-semibold">Masuk sebagai Admin</div>
+                              <div className="text-sm opacity-90">Kelola data siswa dan sistem</div>
+                            </div>
+                          </div>
+                        </Button>
+                      </CardContent>
+                    </Card>
+
+                    {/* Student/Public Access Button */}
+                    <Card className="cursor-pointer hover:shadow-md transition-shadow border-2 border-green-200 bg-green-50">
+                      <CardContent className="pt-6">
+                        <Button 
+                          onClick={() => setShowPublicRegistration(true)}
+                          variant="outline"
+                          className="w-full h-auto p-4 border-green-300 text-green-700 hover:bg-green-100"
+                          size="lg"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="text-2xl">👨‍🎓</div>
+                            <div className="text-left">
+                              <div className="font-semibold">Masuk sebagai Siswa / Daftar</div>
+                              <div className="text-sm opacity-90">Login siswa atau daftarkan akun baru</div>
+                            </div>
+                          </div>
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Alternative: Quick Student Login */}
+                  <div className="border-t pt-6">
+                    <div className="text-center mb-4">
+                      <p className="text-sm text-gray-600">Atau masuk langsung jika sudah punya akun:</p>
+                    </div>
+                    <LoginForm 
+                      onLogin={handleLogin} 
+                      onShowRegistration={() => setShowPublicRegistration(true)}
+                      successMessage={null}
+                    />
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>
